@@ -6,7 +6,7 @@ import type {
   UploadResponse,
 } from "./apiTypes";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 async function readJson<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(await res.text());

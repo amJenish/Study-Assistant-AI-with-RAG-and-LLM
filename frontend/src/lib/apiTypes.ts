@@ -10,7 +10,7 @@ export type UploadResponse = {
 
 export type AskResponse = {
   answer: string;
-  sources: string; // big joint string (not a list)
+  sources: string; 
 };
 
 export type RemoveFileResponse = {

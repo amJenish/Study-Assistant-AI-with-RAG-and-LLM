@@ -4,11 +4,30 @@ from app.core.ResearchSession import ResearchSession
 from app.DataManagement.ElasticManagement import PaperManagement
 from app.RAG.RAGEngine import RAGEngine
 from app.api.schemas import CreateSessionResponse, AskRequest, AskResponse, SessionState
+from threading import RLock
+from pathlib import Path
+
 
 router = APIRouter(prefix="/api", tags=["api"])
 
-# In-memory store for sessions (good for now)
-SESSIONS: dict[str, SessionState] = {}
+class SessionManager:
+    def __init__(self):
+        self._lock = RLock()
+        self._sessions: dict[str, SessionState] = {}
+
+    def get(self, session_id: str) -> "SessionState | None":
+        with self._lock:
+            return self._sessions.get(session_id)
+
+    def create(self, state: "SessionState") -> None:
+        with self._lock:
+            self._sessions[state.session.session_id] = state
+
+    def delete(self, session_id: str) -> None:
+        with self._lock:
+            self._sessions.pop(session_id, None)
+
+SESSIONS = SessionManager()
 
 
 @router.get("/health")
@@ -16,30 +35,38 @@ def health():
     return {"ok": True}
 
 @router.post("/session", response_model=CreateSessionResponse)
-def create_session( pm: PaperManagement = Depends(get_paper_mgmt), rag: RAGEngine = Depends(get_rag_engine)):
-    session = ResearchSession(paperManagement=pm, engine=rag)
-    SESSIONS[session.session_id] = SessionState(session=session, paper_info={})
+def create_session(
+    pm: PaperManagement = Depends(get_paper_mgmt),
+    rag: RAGEngine = Depends(get_rag_engine),
+):
+    session = ResearchSession(paperManagement=pm, engine=rag)  # session.session_id created inside
+    SESSIONS.create(SessionState(session=session, paper_info={}))
     return CreateSessionResponse(session_id=session.session_id)
 
+
 @router.post("/session/{session_id}/upload")
-def upload(
-    session_id: str,
-    file: UploadFile = File(...),
-):
+async def upload_multiple(session_id: str, files: list[UploadFile] = File(...)):
     state = SESSIONS.get(session_id)
     if not state:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    info_dict = state.session.upload_file(file)
-    if not info_dict:
-        raise HTTPException(status_code=400, detail="Paper failed to index")
-    
-    paper_id = str(info_dict["id"])
-    title = str(info_dict.get("title", ""))
+    results = []
 
-    state.paper_info[paper_id] = title
+    for file in files:
+        # Save the file
+        saved_path: Path = state.session.save_file_only(file)
 
-    return {"ok": True, "paper_id": paper_id, "title": title}
+        # Ingest the saved file
+        info_dict = state.session.ingest_saved_file(saved_path=saved_path)
+
+        # Collect result
+        results.append({
+            "ok": True,
+            "paper_id": info_dict["id"],
+            "title": info_dict["title"]
+        })
+
+    return {"uploaded": results}
 
 
 @router.delete("/session/{session_id}/end")

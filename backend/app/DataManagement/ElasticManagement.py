@@ -6,40 +6,79 @@ from typing import List, Dict
 import re
 from sentence_transformers import SentenceTransformer
 from uuid import uuid4
+import torch
+import gc
+from app.DataManagement.SemanticChunker import SemanticChunker
 
 
 class PaperManagement:
 
     def __init__(self):
         self.elastic = ElasticSystem()
-        self.elastic.setup_index(PAPER_CHUNKS_MAPPING)
         self.transformer_model = SentenceTransformer("all-MiniLM-L6-v2")
+        
 
-    def add_paper(self, session_id: str, path: str, chunk_size=800, overlap_size=100):
+    def add_paper(self, session_id: str, path: str,
+        chunk_size=1200, overlap_size=80,
+        embed_batch_size=128, index_batch_size=256):
+
+        chunker = SemanticChunker(self.transformer_model)
+
+
         reader = PdfReader(path)
         title = self._extract_title(reader, path)
-
         pages = self._extract_page_texts(reader)
+
         paper_id = str(uuid4())
-        all_chunks = self._make_chunk_dictionary(session_id=session_id, paper_id=paper_id, title=title, pages=pages, chunk_size=chunk_size, overlap=overlap_size)
+        buf_docs, buf_texts = [], []
 
+        for doc in chunker.make_chunk_dictionary(session_id=session_id, paper_id=paper_id, title=title, pages=pages):
+            buf_docs.append(doc)
+            buf_texts.append(doc["chunk_text"])
 
-        texts = [d["chunk_text"] for d in all_chunks]
+            if len(buf_docs) >= index_batch_size:
+                embs = self.transformer_model.encode(
+                    buf_texts,
+                    batch_size=embed_batch_size,
+                    normalize_embeddings=True,
+                    show_progress_bar=False
+                )
+                for d, e in zip(buf_docs, embs):
+                    d["embedding"] = e.tolist()
 
-        embeddings = self.transformer_model.encode(
-            texts,
-            normalize_embeddings=True
-        )
-        for d,emb in zip(all_chunks, embeddings):
-            d["embedding"] = emb.tolist()
-            self.elastic.add_content(d)
+                self.elastic.add_content(buf_docs)
+                buf_docs.clear(); buf_texts.clear()
+
+        if buf_docs:
+            embs = self.transformer_model.encode(
+                buf_texts,
+                batch_size=embed_batch_size,
+                normalize_embeddings=True,
+                show_progress_bar=False
+            )
+            for d, e in zip(buf_docs, embs):
+                d["embedding"] = e.tolist()
+            self.elastic.add_content(buf_docs)
+            
         self.elastic.refresh()
-
         return {"id": paper_id, "title": title}
+    
+    def release_embedder(self):
+        if self.transformer_model is None:
+            return
+
+        try:
+            self.transformer_model.to("cpu")
+        except Exception:
+            raise Exception("FAILED TO MOVE TRANSFORMER MODEL TO CPU!")
+
+        gc.collect()
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     def semantic_search(self, query: str, k: int, session_id: str, paper_id: None | str = None):
         vec = self.transformer_model.encode(query, normalize_embeddings=True).tolist() #embed the query and convert it to a list 
-
         return self.elastic.semantic_search( qvec=vec, session_id=session_id, paper_id=paper_id, k=k)
     
 
@@ -69,90 +108,6 @@ class PaperManagement:
         return pages
 
 
-    def _make_chunk_dictionary(self,
-        session_id,
-        paper_id,
-        title,
-        pages: List[Dict],
-        chunk_size: int = 800,
-        overlap: int = 100
-    ) -> List[Dict]:
-        assert 0 <= overlap < chunk_size
-
-        chunks = []
-        chunk_id = 0
-
-        current = ""
-        page_start = None
-        page_end = None
-
-        def add_chunk(text: str, page_start, page_end):
-            nonlocal chunk_id
-            nonlocal paper_id
-            nonlocal title
-            nonlocal session_id
-
-            chunk_id += 1
-            chunks.append({
-                "session_id": session_id,
-                "paper_id": paper_id,
-                "title": title,
-                "page_start": page_start,
-                "page_end": page_end,
-                "chunk_id": chunk_id,
-                "chunk_text": text.strip()
-            })
-        
-        for p in pages:
-            if not p["text"]:
-                continue
-
-            if page_start is None:
-                page_start = p["page"]
-            page_end = p["page"]
-
-            # split into paragraph-like units
-            parts = [s.strip() for s in p["text"].split("\n\n") if s.strip()]
-
-            for part in parts:
-                # if one paragraph is huge, hard-split it
-                if len(part) > chunk_size:
-                    # flush current first
-                    if current.strip():
-                        add_chunk(current, page_start=page_start, page_end=page_end)
-                        current = current[-overlap:] if overlap else ""
-                        page_start = p["page"]
-
-                    start = 0
-                    while start < len(part):
-                        piece = part[start:start + chunk_size]
-                        add_chunk(piece, page_start=page_start, page_end=page_end)
-                        start += chunk_size - overlap
-                    current = ""
-                    continue
-
-                # normal greedy packing
-                if len(current) + len(part) + 2 <= chunk_size:
-                    current = (current + "\n\n" + part) if current else part
-                else:
-                    # emit current chunk
-                    if current.strip():
-                        add_chunk(current, page_start=page_start, page_end=page_end)
-
-                    # carry overlap tail into next chunk
-                    tail = current[-overlap:] if overlap else ""
-                    current = (tail + "\n\n" + part).strip()
-
-                    # new chunk starts around here (approx)
-                    page_start = p["page"]
-                    page_end = p["page"]
-
-        if current.strip():
-            add_chunk(current, page_start=page_start, page_end=page_end)
-
-        return chunks
-
-
 
     def _extract_title(self, reader, filepath):
         #First try to extract title from meta data-----
@@ -166,3 +121,4 @@ class PaperManagement:
         
         #Fallback: get the file name -----
         return Path(filepath).stem
+    

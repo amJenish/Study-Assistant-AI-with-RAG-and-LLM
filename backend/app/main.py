@@ -16,7 +16,6 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Research RAG API", lifespan=lifespan)
-app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -27,3 +26,4 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(api_router)

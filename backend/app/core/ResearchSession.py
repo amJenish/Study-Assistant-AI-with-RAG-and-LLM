@@ -5,6 +5,9 @@ from fastapi import UploadFile
 from pathlib import Path
 import shutil
 from app.RAG.RAGEngine import RAGEngine
+import os
+from app.debugging.time import timeit
+
 
 class ResearchSession:
 
@@ -15,21 +18,26 @@ class ResearchSession:
 
         self.paperManagement = paperManagement
         self.engine = engine
+        self._COPY_BUF = 1024 * 1024
 
-    
+    @timeit
     def answer(self, question):
         return self.engine.answer(question=question, session_id=self.session_id)
     
+    @timeit
+    def save_file_only(self, file: UploadFile) -> Path:
 
-    def upload_file(self, file: UploadFile):
-        filename = Path(file.filename).name
-
+        filename = os.path.basename(file.filename) 
         saved_path = self._dir_path / filename
 
-        with open(saved_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        
-        return self.paperManagement.add_paper(session_id=self.session_id, path=saved_path)
+        with open(saved_path, "wb", buffering=self._COPY_BUF) as out_f:
+            shutil.copyfileobj(file.file, out_f, length=self._COPY_BUF)
+
+        return saved_path
+
+    @timeit
+    def ingest_saved_file(self, saved_path: Path):
+        return self.paperManagement.add_paper(session_id=self.session_id, path=str(saved_path))
 
     
     def remove_file(self, paper_id: str):
