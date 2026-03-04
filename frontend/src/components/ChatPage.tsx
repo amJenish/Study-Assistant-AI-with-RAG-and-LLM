@@ -292,9 +292,7 @@ export default function ChatPage({ sessionId, uploadedPapers }: ChatPageProps) {
                         inline ? (
                           <code style={{ background: "#0f1923", color: "#8ABBFF", padding: "1px 5px", borderRadius: "4px", fontSize: "13px", fontFamily: "monospace" }}>{children}</code>
                         ) : (
-                          <pre style={{ background: "#0f1923", color: "#e4e4e4", padding: "12px", borderRadius: "6px", overflowX: "auto", fontSize: "13px", fontFamily: "monospace", margin: "8px 0" }}>
-                            <code>{children}</code>
-                          </pre>
+                          <div> </div>
                         )
                       ) as Components["code"],
                       blockquote: ({ children }) => (
