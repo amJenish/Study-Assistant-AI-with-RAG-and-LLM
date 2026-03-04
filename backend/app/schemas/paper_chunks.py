@@ -8,8 +8,9 @@ PAPER_CHUNKS_MAPPING = {
             "chunk_text": {"type": "text"},
             "page_start": {"type": "integer"},
             "page_end": {"type": "integer"},
-            "embedding": {"type": "dense_vector", 
-                          "dims": 384}
+            "embedding": {"type": "dense_vector", "dims": 384},
+            "summary": {"type": "text"},
+            "summary_embedding": {"type": "dense_vector", "dims": 384},
         }
     }
 }

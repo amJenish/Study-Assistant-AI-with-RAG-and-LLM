@@ -6,6 +6,7 @@ from app.RAG.RAGEngine import RAGEngine
 from app.api.schemas import CreateSessionResponse, AskRequest, AskResponse, SessionState
 from threading import RLock
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 
 router = APIRouter(prefix="/api", tags=["api"])

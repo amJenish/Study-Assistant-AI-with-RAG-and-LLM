@@ -46,7 +46,7 @@ class SemanticChunker:
         # 5. Hard-split any chunk that blew past max_chunk_chars
         final_chunks = self._enforce_max_size(raw_chunks)
 
-        # 6. Format into your dictionary schema
+
         return self._format(final_chunks, session_id, paper_id, title)
 
 

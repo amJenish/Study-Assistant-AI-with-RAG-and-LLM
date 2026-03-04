@@ -6,7 +6,7 @@ class CacheStorage:
     def __init__(self, cache_size: int):
         self.q = deque(maxlen=cache_size)
     
-    def add_cache(self, data : dict):
+    def add_cache(self, data : str):
         self.q.append(data)
     
     def get_cache(self):

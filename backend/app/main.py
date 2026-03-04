@@ -11,8 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
-    app.state.paper_mgmt = PaperManagement()
-    app.state.rag_engine = RAGEngine(retriever=app.state.paper_mgmt, system=RESEARCH_PROMPT)
+    app.state.llm = LLMClient()
+    app.state.paper_mgmt = PaperManagement(app.state.llm)
+    app.state.rag_engine = RAGEngine(llm=app.state.llm, retriever=app.state.paper_mgmt, system=RESEARCH_PROMPT)
     yield
 
 app = FastAPI(title="Research RAG API", lifespan=lifespan)
