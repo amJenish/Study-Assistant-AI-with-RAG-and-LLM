@@ -1,16 +1,18 @@
 from app.DataManagement.ElasticManagement import PaperManagement
 from app.RAG.LLMClient import LLMClient
 from concurrent.futures import ThreadPoolExecutor
+from app.DataManagement.CacheStorage import CacheStorage
 
 import time
 
 class RAGEngine:
 
-    def __init__(self, retriever: PaperManagement, system, k: int = 20):
+    def __init__(self, retriever: PaperManagement, system, k: int = 20, cache_size: int=7):
         self.retriever = retriever
         self.llm = LLMClient()
         self.system = system
         self.k = k
+        self._cache = CacheStorage(cache_size=cache_size)
     
     def _format_sources(self, hits: list[dict]):
         blocks = []
@@ -53,13 +55,26 @@ class RAGEngine:
         hits = self._merge_hits(raw_result["hits"]["hits"], hyde_result["hits"]["hits"])
         sources = self._format_sources(hits)
 
-        user = f"Information About: {question}\n\nSources: \n{sources}"
+        cache_data = ""
+        temp = self._cache.get_cache()
+        for i in range(len(temp)):
+            cache_data+= f"{i}. Question asked:\n {temp[i]['question']} \n\n Answer given:\n {temp[i]['answer']}\n\n Sources used:\n {temp[i]['sources']}\n\n"
+
+        user = f"Information About: {question}\n\nSources: \n{sources} \n\n Previous Cache: {cache_data}"
 
         t2 = time.time()
         answer = self.llm.generate(system=self.system, user=user)
         print(f"Final LLM: {time.time() - t2:.2f}s")
 
-        return {"answer": answer, "sources": sources}
+        to_return = {"answer": answer, "sources": sources}
+
+        #caching ---------------
+        data = to_return
+        data["question"] = question
+        self._cache.add_cache(data=data)
+
+
+        return to_return
     
     def _merge_hits(self, hits_a, hits_b):
         seen = set()

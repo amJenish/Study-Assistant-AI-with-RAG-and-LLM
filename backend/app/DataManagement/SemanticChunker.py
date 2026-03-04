@@ -3,6 +3,7 @@ import numpy as np
 from typing import List, Dict, Optional
 from sentence_transformers import SentenceTransformer
 
+
 class SemanticChunker:
     def __init__(
         self,
@@ -17,9 +18,6 @@ class SemanticChunker:
         self.min_sentences = min_sentences_per_chunk
         self.max_chunk_chars = max_chunk_chars
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def make_chunk_dictionary(
         self,
@@ -75,8 +73,6 @@ class SemanticChunker:
 
 
     #  find breakpoints via cosine distance drops
-
-
     def _find_breakpoints(self, embeddings: np.ndarray) -> List[int]:
 
         if len(embeddings) < 2:

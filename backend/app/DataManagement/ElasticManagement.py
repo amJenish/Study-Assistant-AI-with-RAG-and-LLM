@@ -61,7 +61,10 @@ class PaperManagement:
             self.elastic.add_content(buf_docs)
             
         self.elastic.refresh()
+
+
         return {"id": paper_id, "title": title}
+    
     
     def release_embedder(self):
         if self.transformer_model is None:

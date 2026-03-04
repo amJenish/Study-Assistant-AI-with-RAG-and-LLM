@@ -22,7 +22,8 @@ class ResearchSession:
 
     @timeit
     def answer(self, question):
-        return self.engine.answer(question=question, session_id=self.session_id)
+        ans =  self.engine.answer(question=question, session_id=self.session_id)
+        return ans
     
     @timeit
     def save_file_only(self, file: UploadFile) -> Path:

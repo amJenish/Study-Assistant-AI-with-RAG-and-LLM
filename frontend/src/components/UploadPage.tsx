@@ -14,7 +14,6 @@ import {
   H5,
   Text,
   Divider,
-  NonIdealState,
 } from "@blueprintjs/core";
 
 interface UploadedPaper {
