@@ -9,9 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@blueprintjs/core": "^6.9.1",
     "next": "16.1.6",
-    "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

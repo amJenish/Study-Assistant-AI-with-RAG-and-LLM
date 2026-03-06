@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 
-load_dotenv()
+load_dotenv(override=False)
 
 ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST")
 ELASTICSEARCH_PORT = os.getenv("ELASTICSEARCH_PORT")
@@ -21,9 +21,6 @@ GROQ_API8=os.getenv("GROQ_API8")
 GROQ_API9=os.getenv("GROQ_API9")
 GROQ_API10=os.getenv("GROQ_API10")
 
-OLLAMA_HOST = os.getenv("OLLAMA_HOST")
-OLLAMA_PORT = os.getenv("OLLAMA_PORT")
 
-OLLAMA_URL = f"{OLLAMA_HOST}:{OLLAMA_PORT}"
 
 BASE_STORAGE_DIR = Path(str(os.getenv("base_file_dir")))

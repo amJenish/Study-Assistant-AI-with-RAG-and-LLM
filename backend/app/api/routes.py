@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 router = APIRouter(prefix="/api", tags=["api"])
 
+#Multiple sessions storage created but currently multiple sessions is not supported ----------------------
 class SessionManager:
     def __init__(self):
         self._lock = RLock()

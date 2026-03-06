@@ -1,5 +1,5 @@
 from groq import Groq, RateLimitError
-from app.config import GROQ_API, GROQ_API2, GROQ_API3, GROQ_API4, GROQ_API5, GROQ_API10, GROQ_API6, GROQ_API7, GROQ_API8, GROQ_API9
+from app.config import GROQ_API, GROQ_API2, GROQ_API3, GROQ_API4, GROQ_API5, GROQ_API6, GROQ_API7, GROQ_API8
 import time
 
 class LLMClient:
